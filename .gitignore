@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Consonance local practice data
+data/
+songs/custom/
+.idea/
