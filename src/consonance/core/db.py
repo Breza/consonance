@@ -198,6 +198,13 @@ class AttemptLog:
             for r in self.connection.execute("SELECT * FROM item_schedule")
         }
 
+    def recent_attempts(self, limit: int = 200) -> list[Attempt]:
+        """Read a bounded recent history oldest first for Home's practice observations."""
+        rows = self.connection.execute(
+            "SELECT * FROM attempt_log ORDER BY timestamp_utc DESC,rowid DESC LIMIT ?", (limit,)
+        )
+        return list(reversed([_attempt(row) for row in rows]))
+
     def schedules(self) -> dict[str, tuple[int, str, float, float, bool]]:
         """Return each item's review state as a plain tuple keyed by item."""
         return {
@@ -280,6 +287,26 @@ class AttemptLog:
             "SELECT DISTINCT item_id FROM attempt_log WHERE timestamp_utc>=?", (since_utc,)
         )
         return {r[0] for r in rows}
+
+    def completed_at(self, since_utc: str) -> list[str]:
+        """Return completion timestamps, including assisted work and answers with mistakes.
+
+        A completed exercise, song section, or game qualifies. Incomplete attempts and
+        opening/checkpointing a session do not. Calendar-day deduplication happens later.
+        """
+        rows = self.connection.execute(
+            "SELECT timestamp_utc,prompt_json FROM attempt_log WHERE timestamp_utc>=? "
+            "ORDER BY timestamp_utc,rowid",
+            (since_utc,),
+        )
+        return [str(r[0]) for r in rows if not json.loads(r[1]).get("incomplete", False)]
+
+    def completed_items_since(self, since_utc: str) -> set[str]:
+        """Return distinct finished exercises for a short suggested activity's progress."""
+        rows = self.connection.execute(
+            "SELECT item_id,prompt_json FROM attempt_log WHERE timestamp_utc>=?", (since_utc,)
+        )
+        return {str(r[0]) for r in rows if not json.loads(r[1]).get("incomplete", False)}
 
     def first_seen_since(self, since_utc: str) -> set[str]:
         """Return the items whose very first attempt happened at or after an instant."""

@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from queue import SimpleQueue
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from PySide6.QtCore import QEvent, QPoint, Qt
@@ -23,6 +23,7 @@ from consonance.core.engine import (
     PracticeEngine,
     RenderSnapshot,
 )
+from consonance.core.home import song_bookmark
 from consonance.core.midi_output import Settings
 from consonance.core.notation import Hand
 from consonance.core.song_session import SongConfig
@@ -187,6 +188,7 @@ def test_typing_plays_silent_notes_and_drives_the_transport(window: MainWindow) 
     assert [raw for _, raw in drain(notes)] == [(0x90, 86, 80)]
     window.tabs.setCurrentWidget(window.settings_panel)  # leaving releases whatever is held
     assert [raw for _, raw in drain(notes)] == [(0x80, 86, 0)]
+    assert drain(commands) == [Command(Action.PAUSE)]
     window.tabs.setCurrentWidget(window.practice)
     for code, text in (
         (Qt.Key.Key_Space, " "),
@@ -221,7 +223,9 @@ def test_home_offers_a_plan_and_opens_what_is_chosen(window: MainWindow) -> None
     """Verify home offers a plan and opens what is chosen."""
     commands = window.worker.commands
     dashboard = window.dashboard
-    assert not dashboard.welcome.isHidden() and "nothing due" in dashboard.plan_summary.text()
+    assert (
+        not dashboard.welcome.isHidden() and "nothing due" in dashboard.plan_summary.text().lower()
+    )
     step = dashboard.first_step()
     assert step is not None and step.mode == "keys"
     dashboard.open_step.emit(step)
@@ -267,9 +271,12 @@ def test_home_reflects_practice_history(tmp_path: Path, monkeypatch: pytest.Monk
         dashboard = main.dashboard
         assert dashboard.welcome.isHidden() and "1 due" in dashboard.plan_summary.text()
         assert dashboard.plan is not None and dashboard.plan.steps[0].kind == "review"
-        assert "1 of 152 items mastered" in dashboard.mastered.text()
-        assert "17" in dashboard.rush_best.text() and dashboard.echo_best.text() == "No score yet"
-        assert "due now" in dashboard.free.item(10).text()
+        assert f"1 of {len(ITEMS)} practice items fluent" in dashboard.mastered.text()
+        assert (
+            "17" in dashboard.rush_best.text() and "Listen and echo" in dashboard.echo_best.text()
+        )
+        assert "ready to review" in dashboard.free.item(10).text()
+        assert dashboard.lesson_days.text() == "1"
         assert dict(dashboard.week.days)  # the chart has its seven days
         main.practice.set_progress(dashboard.states)
         main.practice.choose_mode("sight")
@@ -277,6 +284,133 @@ def test_home_reflects_practice_history(tmp_path: Path, monkeypatch: pytest.Monk
     finally:
         main.close()
         app.processEvents()
+
+
+def test_desk_begins_one_activity_and_keeps_every_chapter_accessible(window: MainWindow) -> None:
+    """Home's primary action starts a ready drill; browsing never applies a mastery lock."""
+    dashboard = window.dashboard
+    step = dashboard.first_step()
+    assert step is not None
+    dashboard.start_button.click()
+    request, command = drain(window.worker.commands)
+    assert isinstance(request, StudyConfig)
+    assert tuple(i.item_id for i in request.items) == step.item_ids
+    assert command == Command(Action.PLAY)
+    window.tabs.setCurrentWidget(dashboard)
+    assert drain(window.worker.commands) == [Command(Action.PAUSE)]
+    assert dashboard.library.isHidden()
+    dashboard.unit_buttons[-1].click()
+    assert not dashboard.library.isHidden() and dashboard.units.currentIndex() == 7
+    assert dashboard.free.count() == len(UNITS[-1].items)
+    assert len(dashboard.calendar.days) == 90
+    assert dashboard.lesson_days.text() == "0"
+
+
+def test_desk_piece_restores_section_and_preferences_after_another_mode(window: MainWindow) -> None:
+    """Returning to music preserves choices without pretending a new piece was played."""
+    timeline = window.practice.song_panel.timelines[0]
+    config = SongConfig(timeline, "Tempo", frozenset({Hand.LEFT}), 0.85, 2, 3, True, True)
+    window.log.set_preference("home_song", json.dumps(song_bookmark(config)))
+    window.dashboard.refresh()
+    window.dashboard.piece_button.click()
+    assert drain(window.worker.commands) == [config]
+    window.practice.toggle_play()
+    assert drain(window.worker.commands) == [Command(Action.PLAY)]
+    assert window.log.preference_value("home_song") == song_bookmark(config)
+    window.tabs.setCurrentWidget(window.dashboard)
+    drain(window.worker.commands)
+    window.dashboard.refresh()
+    assert window.dashboard.piece_title.text() == timeline.title
+    assert "Measures 2–3" in window.dashboard.piece_detail.text()
+    assert window.dashboard.piece_button.text() == "Continue this piece"
+
+
+def test_desk_connection_context_avoids_silent_listening_tasks(window: MainWindow) -> None:
+    """An audio-only review remains inspectable while the quiet recommendation stays playable."""
+    from consonance.core.plan import Plan, PlanStep
+
+    dashboard = window.dashboard
+    audio = PlanStep("review", "ear", "A listening exercise", "", ("ear:note:1",))
+    dashboard.plan = Plan((audio,), 1, 0, 1)
+    dashboard._show_plan(dashboard.plan)
+    first = dashboard.first_step()
+    assert first is not None and first.mode in ("keys", "sight")
+    dashboard.set_connection(True, True)
+    assert dashboard.first_step() == audio
+    dashboard.set_connection(False, False)
+    assert dashboard.first_step() != audio
+    assert "Quiet practice" in dashboard.hero_reason.text()
+
+
+def test_short_activity_has_an_optional_stopping_point_and_counts_finished_items(
+    window: MainWindow,
+) -> None:
+    """Finishing an assisted exercise counts toward the small activity; an abandon does not."""
+    dashboard = window.dashboard
+    dashboard.start_button.click()
+    drain(window.worker.commands)
+    step = dashboard.first_step()
+    assert step is not None
+    assert not window.practice.session_note.isHidden()
+    session = window.log.start_session(step.mode)
+    for i, item_id in enumerate(step.item_ids):
+        window.log.append(
+            Attempt(
+                session,
+                step.mode,
+                item_id,
+                (),
+                (),
+                False,
+                1,
+                prompt_json=json.dumps({"incomplete": True} if i == 0 else {"assisted": True}),
+            )
+        )
+    window.worker.saved += 1
+    window.render_snapshot()
+    assert (
+        f"{len(step.item_ids) - 1} of {len(step.item_ids)}" in window.practice.session_text.text()
+    )
+    window.practice.finish_button.click()
+    assert window.tabs.currentWidget() is dashboard
+    assert drain(window.worker.commands) == [Command(Action.PAUSE)]
+
+
+def test_home_and_practice_fit_laptop_windows(window: MainWindow) -> None:
+    """Inactive panels cannot force the whole window off screen or clip Home sideways."""
+    app = QApplication.instance()
+    assert app is not None
+    window.resize(900, 700)
+    app.processEvents()
+    assert window.width() == 900 and window.height() == 700
+
+    assert window.dashboard.scroll_area.horizontalScrollBar().maximum() == 0
+    position = cast(
+        tuple[int, int, int, int],
+        window.dashboard.main_grid.getItemPosition(
+            window.dashboard.main_grid.indexOf(window.dashboard.piece)
+        ),
+    )
+    assert position[:2] == (1, 0)
+    window.dashboard.explore.click()
+    app.processEvents()
+    assert not window.dashboard.library.isHidden()
+    assert window.dashboard.scroll_area.horizontalScrollBar().maximum() == 0
+    window.tabs.setCurrentWidget(window.practice)
+    window.practice.choose_mode("song")
+    app.processEvents()
+    assert window.width() == 900 and window.height() == 700
+
+
+def test_home_rolls_over_after_midnight_and_handles_a_missing_import(window: MainWindow) -> None:
+    """A long-running desk advances its date, and a deleted piece opens a recovery path."""
+    dashboard = window.dashboard
+    dashboard._shown_date = datetime.now().date() - timedelta(days=1)
+    dashboard.refresh_for_date()
+    assert dashboard._shown_date == datetime.now().astimezone().date()
+    window.continue_piece("deleted-import")
+    assert window.tabs.currentWidget() is window.practice
+    assert "no longer available" in window.practice.song_panel.message.text()
 
 
 def test_settings_apply_at_once_and_refuse_channel_clashes(window: MainWindow) -> None:

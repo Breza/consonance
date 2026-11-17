@@ -142,7 +142,7 @@ class RushDrill(SightDrill):
             prompt_index=base.prompt_index,
             title=RUSH_LEVELS[self.level][0] if self.level < len(RUSH_LEVELS) else base.title,
             instruction=self.instruction,
-            chips=(f"score {self.score}", f"best {best}", f"streak {self.streak}"),
+            chips=(f"score {self.score}", f"best {best}", f"clean run {self.streak}"),
             reveal=base.reveal,
             game=GameState(self.score, best, None, left, self.over),
             progress=left / self.duration,

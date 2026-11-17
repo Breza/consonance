@@ -20,7 +20,7 @@ You can also run `.\.venv\Scripts\python.exe -m consonance.ui.app`. The project 
 2. Keep **Local Control ON**. Set the physical keyboard's transmit channel to **MIDI Ch 1**.
 3. Start Consonance. It looks for the piano every two seconds and connects by itself, so the piano can be switched on before or after the app. The indicator at the top right turns green and names the device. The computer's own "Microsoft GS Wavetable Synth" is never chosen automatically.
 4. Ensure the piano receives a piano sound on **Ch 2** and GM2 percussion on **Ch 10**. Consonance does not change your local-control or patch settings. Use the piano's volume control.
-5. Open **Home** and press **Start** on the first step of *Today's plan*. Nothing is locked. All eight units and all thirteen pieces are available immediately.
+5. Open **Home** and press **Begin practice** on your practice desk. Nothing is locked. All eight units and all thirteen pieces are available immediately.
 
 If automatic connection picks nothing (several unnamed interfaces, say), open **Settings**, choose the piano's MIDI In and MIDI Out, and press **Connect**. The choice is remembered, and it survives Windows renumbering the ports. **Disconnect** is respected until you connect again. If the piano is unplugged, practice pauses and the indicator says so; plugging it back in reconnects.
 
@@ -43,10 +43,13 @@ These work wherever keyboard focus is on the Practice screen, including inside a
 
 ## Home
 
-- **Today's plan** answers "what should I do now?". Reviews that have come due are listed first, one step per practice mode, oldest first. New material follows from the first unit that is not yet 80% mastered: at most eight first meetings a day, a few per mode, so new things have room to settle. When nothing is due and the day's new material is met, unfinished items of that unit are offered. Each step has a **Start** button.
-- **Practice log**: minutes today, the modes touched, a seven-day chart, your streak, and how many of the 152 items are mastered. Practice for two minutes or forty-five; completed attempts commit immediately. Minutes accrue only while a drill is running and you have played within the last thirty seconds (or the music itself is moving).
-- **Free practice**: every unit and every item, each with a status dot: new, learning (with its review box), due now, or mastered. Double-click to open.
-- **Games**: Note Rush and Melody Echo, with personal bests.
+- **Your next few minutes** gives one suggested activity a prominent Begin button. It prepares the set and starts normal practice or its count-in. Reviews come first, followed by small introductions from the recommended unit. **See other suggestions** reveals the daily plan; every activity is optional. Without a piano, the recommendation favors quiet key-finding and reading. A short suggested activity shows the number of distinct exercises practised and a **Finish here** button; stopping is always allowed. Leaving Practice pauses it.
+- **A piece to come back to** previews a real score and restores the section, hands, mode, tempo, and loop choices of the last piece you played. Imported pieces can also be restored. Exploring a piece opens Song Studio; press Play when ready.
+- **Lesson days, past 90 days** counts distinct local calendar dates with at least one finished exercise, song section, or game. Today and the previous 89 dates are included. Multiple completions in a day count once. Assisted work and answers completed after mistakes count; opening the app or abandoning a prompt does not. This is a rolling overview, with no daily streak or consecutive-day requirement. The small calendar shows recorded completions, not a target. Existing attempt history supplies the count, so no reset or migration is needed.
+- **Practice log** also shows actual minutes today, modes touched, and seven days of minutes. Minutes accrue only while a drill is running and you have played within the last thirty seconds (or the music itself is moving). Completed attempts commit immediately.
+- **Something to build on** shows a reading-response observation only after ten comparable, unassisted answers to the same item, with a faster median and steady or better accuracy. It does not claim broader piano technique improvement.
+- **Your developing skills** shows the eight open chapters and their existing fluency counts. Choose a chapter or **Explore all practice** to browse every item. Status labels describe new material, building fluency, ready to review, or fluent. All content remains accessible.
+- **A change of pace** offers Note Rush and Melody Echo, with personal bests.
 
 ## Practice
 

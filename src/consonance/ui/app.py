@@ -24,16 +24,17 @@ from PySide6.QtWidgets import (
 )
 
 from consonance.core.builtin_scores import score_by_id
-from consonance.core.curriculum import ITEMS, UNITS
-from consonance.core.db import AttemptLog
-from consonance.core.engine import SCENES, Action, Command
+from consonance.core.curriculum import ITEMS, UNITS, StudyConfig
+from consonance.core.db import AttemptLog, utc_now
+from consonance.core.engine import SCENES, Action, Command, GameConfig
+from consonance.core.home import restore_song, song_bookmark
 from consonance.core.midi_output import Settings
 from consonance.core.notation import Hand, pitch_name
 from consonance.core.plan import PlanStep
 from consonance.core.song_session import SongConfig
 from consonance.io.midi_ports import MidiPorts, base_name, match_port, suggest_ports
 from consonance.io.paths import database_path, log_path
-from consonance.io.session_worker import ConnectPorts, RealtimeSessionWorker
+from consonance.io.session_worker import ConnectPorts, RealtimeSessionWorker, Request
 from consonance.ui import theme
 from consonance.ui.dashboard import Dashboard, _dot
 from consonance.ui.practice import PracticeView
@@ -71,6 +72,8 @@ class MainWindow(QMainWindow):
         self._last_attempt: tuple[str, str] | None = None
         self._user_disconnected = False
         self._saved_seen = 0
+        self._focus_started: str | None = None
+        self._focus_items: frozenset[str] = frozenset()
         link = self.log.preference_value("midi", {})
         self.link_prefs: dict[str, Any] = link if isinstance(link, dict) else {}
         root = QWidget()
@@ -87,13 +90,16 @@ class MainWindow(QMainWindow):
         self.dashboard = Dashboard(self.log)
         self.dashboard.open_item.connect(self.open_item)
         self.dashboard.open_step.connect(self.open_step)
+        self.dashboard.start_step.connect(self.start_step)
+        self.dashboard.open_piece.connect(self.continue_piece)
         self.dashboard.open_game.connect(self.open_game)
         self.tabs.addTab(self.dashboard, "Home")
         self.practice = PracticeView(self.log, self.settings)
-        self.practice.submit.connect(self.worker.submit)
+        self.practice.submit.connect(self._submit_practice)
         self.practice.settings_edited.connect(self.save_settings)
         self.practice.note_on.connect(lambda pitch: self._send_note(pitch, True))
         self.practice.note_off.connect(lambda pitch: self._send_note(pitch, False))
+        self.practice.finish_requested.connect(lambda: self.tabs.setCurrentWidget(self.dashboard))
         self.tabs.addTab(self.practice, "Practice")
         self.settings_panel = SettingsPanel(
             self.settings, bool(self.link_prefs.get("auto_connect", True))
@@ -102,6 +108,7 @@ class MainWindow(QMainWindow):
         self.settings_panel.connect_requested.connect(self._manual_connect)
         self.settings_panel.auto_connect_changed.connect(self._auto_connect_changed)
         self.tabs.addTab(self.settings_panel, "Settings")
+        self._active_tab: QWidget | None = self.tabs.currentWidget()
         self.tabs.currentChanged.connect(self.tab_changed)
         layout.addWidget(self.tabs, 1)
         self.setStyleSheet(theme.STYLE)
@@ -183,6 +190,10 @@ class MainWindow(QMainWindow):
 
     def tab_changed(self, index: int) -> None:
         """Bring the screen being shown up to date."""
+        current = self.tabs.widget(index)
+        if self._active_tab is self.practice and current is not self.practice:
+            self._submit_practice(Command(Action.PAUSE))
+        self._active_tab = current
         if self.tabs.widget(index) is self.dashboard:
             self.dashboard.refresh()
         self.practice.set_progress(self.log.schedule_states())
@@ -217,6 +228,54 @@ class MainWindow(QMainWindow):
     def open_game(self, game: str, level: int = -1) -> None:
         """Open Note Rush or Melody Echo at its last-used level."""
         self.practice.choose_mode(game)
+        self.tabs.setCurrentWidget(self.practice)
+
+    def _submit_practice(self, request: Request) -> None:
+        """Remember the piece actually played, then pass the typed request to the worker."""
+        if isinstance(request, StudyConfig | SongConfig | GameConfig):
+            self._focus_started = None
+            self._focus_items = frozenset()
+            self.practice.show_session_goal(0, 0)
+        if (
+            isinstance(request, Command)
+            and (
+                request.action in (Action.PLAY, Action.REPLAY)
+                or request.action == Action.PAUSE
+                and self.practice.running
+            )
+            and self.practice.scene == "song"
+            and self.practice.song_config is not None
+        ):
+            self.log.set_preference(
+                "home_song", json.dumps(song_bookmark(self.practice.song_config))
+            )
+        self.worker.submit(request)
+
+    def start_step(self, step: PlanStep) -> None:
+        """Prepare one suggested activity and begin it with its normal drill/count-in rules."""
+        self.open_step(step)
+        if step.mode != "song":
+            self._focus_started = utc_now()
+            self._focus_items = frozenset(step.item_ids)
+            self.practice.show_session_goal(0, len(self._focus_items))
+        self._submit_practice(Command(Action.PLAY))
+
+    def continue_piece(self, song_id: str) -> None:
+        """Restore the last played section, hands and tempo, including imported pieces."""
+        timelines = self.practice.song_panel.timelines
+        config = restore_song(self.log.preference_value("home_song"), timelines)
+        if config is None or config.timeline.song_id != song_id:
+            timeline = next((t for t in timelines if t.song_id == song_id), None)
+            if timeline is None:
+                self.practice.choose_mode("song")
+                self.tabs.setCurrentWidget(self.practice)
+                self.practice.song_panel.message.setText(
+                    "That imported piece is no longer available. "
+                    "Choose another piece or import it again."
+                )
+                return
+            config = SongConfig(timeline)
+        self.practice.open_song(config)
         self.tabs.setCurrentWidget(self.practice)
 
     def save_settings(self, settings: Settings) -> None:
@@ -363,9 +422,13 @@ class MainWindow(QMainWindow):
         snapshot = self.worker.latest
         self.practice.show_snapshot(snapshot)
         self._show_link(snapshot.midi_in, snapshot.midi_out, snapshot.error)
+        self.dashboard.set_connection(bool(snapshot.midi_in), bool(snapshot.midi_out))
         self._show_hint(snapshot.channel_hint)
         if self.worker.saved != self._saved_seen:
             self._saved_seen = self.worker.saved
+            if self._focus_started:
+                done = self.log.completed_items_since(self._focus_started) & self._focus_items
+                self.practice.show_session_goal(len(done), len(self._focus_items))
             if self.tabs.currentWidget() is self.dashboard:
                 self.dashboard.refresh()
 

@@ -1,17 +1,17 @@
 """One palette and one stylesheet so every screen reads as the same instrument."""
 
-PAPER = "#f5f5ee"
-SURFACE = "#fcfaf3"
+PAPER = "#f1f0e9"
+SURFACE = "#fcfaf4"
 CARD = "#fffdf8"
-INK = "#243c42"
-MUTED = "#5d7378"
+INK = "#26362f"
+MUTED = "#617067"
 FAINT = "#8a9a9c"
 RULE = "#dcdccd"
 MINT = "#deebe5"
 MINT_HOVER = "#c9e0d5"
 MINT_BORDER = "#b4cbc3"
-TEAL = "#2f7f79"
-TEAL_DARK = "#256862"
+TEAL = "#326d59"
+TEAL_DARK = "#234e40"
 TEAL_SOFT = "#53a7a2"
 ORANGE = "#d0873f"
 GREEN = "#3f9b6c"
@@ -82,7 +82,22 @@ QListWidget::item:selected {{ background: {MINT}; color: {INK}; }}
 QListWidget::item:hover {{ background: {PAPER}; }}
 QFrame[role="card"] {{ background: {CARD}; border: 1px solid {RULE}; border-radius: 10px; }}
 QFrame[role="banner"] {{ background: {AMBER_SOFT}; border: 1px solid {AMBER}; border-radius: 8px; }}
+QWidget[role="sessionNote"] {{ background: {MINT}; border-radius: 8px; }}
 QLabel[role="title"] {{ font-size: 22px; font-weight: 600; }}
+QLabel[role="deskTitle"] {{ font-size: 30px; font-weight: 600; letter-spacing: -1px; }}
+QLabel[role="stat"] {{ font-size: 38px; font-weight: 600; }}
+QFrame[role="hero"] {{ background: #203f35; border: none; border-radius: 16px; }}
+QFrame[role="hero"] QLabel {{ color: #f5f3e9; }}
+QFrame[role="hero"] QLabel[role="heading"] {{ color: #bbcec2; }}
+QFrame[role="hero"] QLabel[role="heroTitle"] {{ font-size: 30px; font-weight: 600; }}
+QFrame[role="hero"] QLabel[role="heroBody"] {{ color: #d9e4da; font-size: 15px; }}
+QPushButton[role="heroAction"] {{ background: #f2e5ca; color: #203f35;
+    border: none; border-radius: 8px; font-size: 16px; font-weight: 600; }}
+QPushButton[role="heroAction"]:hover {{ background: #fff4dc; }}
+QPushButton[role="heroQuiet"] {{ background: transparent; color: #e0e9e0;
+    border: 1px solid #668173; }}
+QPushButton[role="heroQuiet"]:hover {{ background: #315344; }}
+QPushButton:focus {{ border: 2px solid {TEAL_SOFT}; }}
 QLabel[role="heading"] {{ font-size: 12px; font-weight: 600; color: {MUTED}; letter-spacing: 1px; }}
 QLabel[role="muted"] {{ color: {MUTED}; }}
 QLabel[role="chip"] {{ background: {MINT}; border-radius: 10px; padding: 3px 10px; color: {INK}; }}

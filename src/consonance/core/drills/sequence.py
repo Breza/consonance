@@ -346,7 +346,7 @@ class SequenceDrill(Drill):
         if self.answered:
             chips.append(f"{self.answered} answered")
             chips.append(f"{round(100 * self.clean_count / self.answered)}% clean first time")
-            chips.append(f"streak {self.streak}")
+            chips.append(f"clean run {self.streak}")
         if len(self.items) > 1:
             chips.append(f"{len(self._cleared)} of {len(self.items)} cleared")
         return tuple(chips)

@@ -10,10 +10,12 @@ from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
     QComboBox,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -68,6 +70,7 @@ class PracticeView(QWidget):
     settings_edited = Signal(object)
     note_on = Signal(int)
     note_off = Signal(int)
+    finish_requested = Signal()
 
     def __init__(self, log: AttemptLog, settings: Settings) -> None:
         """Build the screen; nothing is requested from the engine yet."""
@@ -85,11 +88,29 @@ class PracticeView(QWidget):
         self._filling = False
         self._leaving: str | None = None
         self._stale_frames = 0
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        outer.addWidget(self.scroll_area)
+        body = QWidget()
+        self.scroll_area.setWidget(body)
+        layout = QVBoxLayout(body)
         layout.setContentsMargins(14, 8, 14, 10)
         layout.setSpacing(8)
         layout.addLayout(self._build_modes())
         layout.addLayout(self._build_header())
+        self.session_note = QWidget()
+        self.session_note.setProperty("role", "sessionNote")
+        session_row = QHBoxLayout(self.session_note)
+        self.session_text = QLabel("")
+        self.session_text.setWordWrap(True)
+        session_row.addWidget(self.session_text, 1)
+        self.finish_button = QPushButton("Finish here")
+        self.finish_button.clicked.connect(self.finish_requested.emit)
+        session_row.addWidget(self.finish_button)
+        self.session_note.hide()
+        layout.addWidget(self.session_note)
         self.song_panel = SongStudioPanel(log)
         self.song_panel.configured.connect(self._song_configured)
         self.song_panel.view_changed.connect(self._remember_view)
@@ -120,14 +141,16 @@ class PracticeView(QWidget):
         view = self.prefs.get("song_view")
         if isinstance(view, str):
             self.song_panel.view.setCurrentText(view)
+        # Optional panels must not inflate the initial window before the first snapshot.
+        self.show_snapshot(RenderSnapshot(scene="keys"))
 
-    def _build_modes(self) -> QHBoxLayout:
-        """Create the row of mode buttons."""
-        row = QHBoxLayout()
+    def _build_modes(self) -> QGridLayout:
+        """Keep all eight practice modes reachable on smaller laptop windows."""
+        row = QGridLayout()
         row.setSpacing(0)
         self.modes = QButtonGroup(self)
         self.mode_buttons: dict[str, QPushButton] = {}
-        for scene in SCENES:
+        for index, scene in enumerate(SCENES):
             button = QPushButton(MODE_TITLES[scene])
             button.setCheckable(True)
             button.setProperty("role", "mode")
@@ -136,8 +159,7 @@ class PracticeView(QWidget):
             button.clicked.connect(lambda checked=False, s=scene: self.choose_mode(s))
             self.modes.addButton(button)
             self.mode_buttons[scene] = button
-            row.addWidget(button)
-        row.addStretch(1)
+            row.addWidget(button, index // 4, index % 4)
         return row
 
     def _build_header(self) -> QVBoxLayout:
@@ -146,6 +168,7 @@ class PracticeView(QWidget):
         column.setSpacing(2)
         top = QHBoxLayout()
         self.title = QLabel("")
+        self.title.setWordWrap(True)
         self.title.setProperty("role", "title")
         top.addWidget(self.title, 1)
         self.set_label = QLabel("SET")
@@ -186,9 +209,11 @@ class PracticeView(QWidget):
         box.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         return box
 
-    def _build_controls(self) -> QHBoxLayout:
+    def _build_controls(self) -> QVBoxLayout:
         """Create the transport buttons, tempo control and display options."""
+        column = QVBoxLayout()
         row = QHBoxLayout()
+        column.addLayout(row)
         self.play_button = self._button("Play", "play", "Start or pause (Space)", "primary")
         self.play_button.setMinimumWidth(120)
         self.play_button.clicked.connect(self.toggle_play)
@@ -214,6 +239,8 @@ class PracticeView(QWidget):
         )
         row.addWidget(self.tempo)
         row.addStretch(1)
+        options = QHBoxLayout()
+        column.addLayout(options)
         self.names = self._check(
             "Note names",
             "Label every note. Answers given with names showing are not counted toward mastery.",
@@ -246,8 +273,23 @@ class PracticeView(QWidget):
         )
         self.show_call.toggled.connect(self._show_call_changed)
         for box in (self.names, self.key_hints, self.guides, self.fingering, self.show_call):
-            row.addWidget(box)
-        return row
+            options.addWidget(box)
+        options.addStretch(1)
+        return column
+
+    def show_session_goal(self, completed: int, total: int) -> None:
+        """Offer a satisfying stopping point without imposing a timer or a pass condition."""
+        self.session_note.setVisible(total > 0)
+        if total:
+            prefix = f"{min(completed, total)} of {total} exercises practised. "
+            self.session_text.setText(
+                prefix
+                + (
+                    "A good place to finish, or keep exploring."
+                    if completed >= total
+                    else "One small activity; you can finish whenever you like."
+                )
+            )
 
     def _remember(self, key: str, value: Any) -> None:
         """Keep a display preference for next time."""
@@ -318,6 +360,7 @@ class PracticeView(QWidget):
         The engine answers within a few milliseconds; until it does, snapshots still
         describe the mode being left and are not drawn, so the screen never flickers back.
         """
+        self.scroll_area.verticalScrollBar().setValue(0)
         if scene != self.scene:
             self._leaving, self._stale_frames = self.scene, STALE_FRAMES
         self.scene = scene
@@ -390,6 +433,11 @@ class PracticeView(QWidget):
     def toggle_play(self) -> None:
         """Play when stopped, pause when running."""
         self.submit.emit(Command(Action.PAUSE if self._running else Action.PLAY))
+
+    @property
+    def running(self) -> bool:
+        """Report the latest published running state for navigation and bookmarking."""
+        return self._running
 
     @staticmethod
     def _visible(widget: QWidget, visible: bool) -> None:

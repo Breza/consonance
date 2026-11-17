@@ -239,13 +239,13 @@ def test_progress_and_status_follow_the_schedule() -> None:
     assert item_status("note:treble:D4", states, soon) == "new"
 
 
-def test_local_practice_minutes_streak_and_drills() -> None:
-    """Verify local practice minutes streak and drills."""
+def test_local_practice_minutes_lesson_days_and_drills() -> None:
+    """Count completed lesson dates separately from active practice minutes."""
     now = datetime(2026, 1, 7, 12, tzinfo=UTC)
     sessions = [(f"2026-01-0{i}T10:00:00+00:00", 120.0, "sight") for i in (5, 6, 7)]
-    result = summarize_practice(sessions, now)
+    result = summarize_practice(sessions, now, [s[0] for s in sessions])
     assert result.minutes_today == 2
-    assert result.streak == 3
+    assert result.lesson_days_90 == 3
     assert result.drills_today == ("sight",)
     assert len(result.seven_days) == 7
     assert local_midnight_utc(now) == "2026-01-07T00:00:00+00:00"

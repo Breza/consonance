@@ -1,5 +1,33 @@
 # Implementation verification
 
+## Practice desk and 90-day overview (2026-11-17)
+
+Built on the 0.2.0 usability pass below, preserving its automatic connection, daily plan,
+eight practice modes, on-screen keyboard, games, curriculum, and score rendering.
+
+| Check | Result |
+| --- | --- |
+| `ruff check` | Passed |
+| `mypy --strict src tests` | Passed, 71 files |
+| `pytest -q` | 165 passed |
+
+New coverage checks the inclusive 90-calendar-day window, same-day deduplication, gaps,
+future dates, local midnight and historical DST, completed versus abandoned answers,
+assisted completions, context-sensitive quiet suggestions, comparable reading insights,
+saved song section/hands/tempo/loop restoration, a one-click practice start, an optional
+short-session stopping point, open curriculum chapters, date rollover, and missing imports.
+Existing musical grading, transport, worker, port handling, and notation tests still pass.
+
+Offscreen visual QA inspected first-use, returning, and laptop layouts on isolated sample
+profiles at 1200 x 900 and 900 x 900. A regression test also checks 900 x 700. Home has no
+horizontal overflow at these sizes. The Practice page now scrolls and wraps mode buttons,
+so hidden panels no longer force the entire window beyond the available screen.
+
+A real worker smoke run on a separate test profile exercised Begin, a timestamped answer,
+Finish, SQLite persistence, and the resulting single lesson-day count. It opened no MIDI
+ports. The previews use sample history; the player's actual practice database was not
+modified for testing. Physical piano acceptance testing remains outstanding.
+
 ## Usability pass (0.2.0)
 
 Checks ran on Windows 11 with the project's Python 3.14.5 virtual environment; the package declares Python >=3.12 and mypy checks against Python 3.12. **No piano or other MIDI instrument was connected at any point.**

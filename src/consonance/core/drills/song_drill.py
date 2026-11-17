@@ -185,7 +185,7 @@ class SongDrill(Drill):
         if session.last_accuracy is not None:
             chips.append(f"last pass {session.last_accuracy:.0%}")
         if config.auto_ramp and session.ramp.streak:
-            chips.append(f"clean streak {session.ramp.streak} of 3")
+            chips.append(f"clean passes {session.ramp.streak} of 3")
         beat_info = session.pulse(now)
         instruction = (
             "Play each highlighted chord when you are ready. The music follows you."

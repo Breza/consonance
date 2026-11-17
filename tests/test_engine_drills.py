@@ -283,7 +283,7 @@ def test_tallies_and_titles_reach_the_snapshot() -> None:
     tap(engine, 60, 2)
     tap(engine, 53, 3)
     snapshot = engine.snapshot()
-    assert snapshot.chips == ("2 answered", "50% clean first time", "streak 0", "1 of 4 cleared")
+    assert snapshot.chips == ("2 answered", "50% clean first time", "clean run 0", "1 of 4 cleared")
     assert snapshot.feedback == "ok" and snapshot.completed == 2 and snapshot.scene == "sight"
     assert snapshot.held == frozenset() and snapshot.expected == frozenset({60})
     for scene in ("keys", "sight", "rush", "rhythm", "technique", "ear", "echo", "song"):
