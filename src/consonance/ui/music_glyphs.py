@@ -9,6 +9,7 @@ from PySide6.QtGui import QPainterPath, QPainterPathStroker, QTransform
 
 
 def _stroke(points: tuple[tuple[float, float], ...], width: float = 0.18) -> QPainterPath:
+    """Turn a polyline into a filled outline with round caps and joins."""
     path = QPainterPath()
     path.moveTo(*points[0])
     for point in points[1:]:
@@ -21,12 +22,14 @@ def _stroke(points: tuple[tuple[float, float], ...], width: float = 0.18) -> QPa
 
 
 def _curve(path: QPainterPath, width: float = 0.18) -> QPainterPath:
+    """Turn a curved path into a filled outline of the given thickness."""
     stroker = QPainterPathStroker()
     stroker.setWidth(width)
     return stroker.createStroke(path)
 
 
 def _build() -> dict[str, QPainterPath]:
+    """Draw every named glyph once; views translate these shared paths into place."""
     glyphs: dict[str, QPainterPath] = {}
     p = QPainterPath()
     p.moveTo(0.65, 3.2)
@@ -92,6 +95,7 @@ GLYPHS = _build()
 
 
 def notehead(hollow: bool = False, whole: bool = False) -> QPainterPath:
+    """Return a tilted notehead: solid, hollow for long notes, or wider for a whole note."""
     path = QPainterPath()
     path.addEllipse(QRectF(-0.64 if not whole else -0.8, -0.43, 1.28 if not whole else 1.6, 0.86))
     if hollow:

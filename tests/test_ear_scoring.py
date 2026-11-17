@@ -3,6 +3,7 @@ from consonance.core.notation import MidiPitch
 
 
 def test_ear_probes_do_not_earn_first_try_mastery() -> None:
+    """Verify ear probes do not earn first try mastery."""
     piano = PianoStateTracker()
     evaluator = UntimedEvaluator(frozenset({MidiPitch(60)}), 0)
     for e in (

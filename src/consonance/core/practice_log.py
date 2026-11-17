@@ -1,18 +1,30 @@
 """Practice-day aggregation uses the caller's local calendar, including the current session."""
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 
 @dataclass(frozen=True)
 class PracticeDay:
+    """Today's practice at a glance, with the last week for context."""
+
     minutes_today: float
     streak: int
     seven_days: tuple[tuple[str, float], ...]
     drills_today: tuple[str, ...]
 
 
+def local_midnight_utc(now: datetime) -> str:
+    """Return the start of the caller's local day as a UTC ISO timestamp for log queries."""
+    return now.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(UTC).isoformat()
+
+
 def summarize_practice(sessions: list[tuple[str, float, str]], now: datetime) -> PracticeDay:
+    """Total practice per local day; a streak counts consecutive days with any practice.
+
+    Today does not break a streak before it has been practised: the streak then runs up to
+    yesterday.
+    """
     totals: dict[str, float] = {}
     drills: set[str] = set()
     for started, seconds, mode in sessions:

@@ -11,12 +11,14 @@ from consonance.core.notation import MidiPitch
 
 
 def test_velocity_zero_and_ignored_messages() -> None:
+    """Verify velocity zero and ignored messages."""
     assert normalize((0x90, 60, 0), 1) == NoteOff(MidiPitch(60), 1)
     assert normalize((0xFE,), 1) is None
     assert normalize((0xF0, 1, 2), 1) is None
 
 
 def test_damper_release() -> None:
+    """Verify damper release."""
     state = PianoStateTracker()
     state.process(NoteOn(MidiPitch(60), 90, 0))
     state.process(ControlChange(64, 70, 0.1))
@@ -26,6 +28,7 @@ def test_damper_release() -> None:
 
 
 def test_soft_pedal_edges_and_debounce() -> None:
+    """Verify soft pedal edges and debounce."""
     state = PianoStateTracker()
     assert state.process(ControlChange(67, 64, 0)) == (SoftPedalTap(0),)
     assert not state.process(ControlChange(67, 127, 0.5))
@@ -36,6 +39,7 @@ def test_soft_pedal_edges_and_debounce() -> None:
 
 
 def test_repeated_note_under_damper_retains_each_effective_hold() -> None:
+    """Verify repeated note under damper retains each effective hold."""
     state = PianoStateTracker()
     state.process(NoteOn(MidiPitch(60), 80, 0))
     state.process(ControlChange(64, 127, 0.1))

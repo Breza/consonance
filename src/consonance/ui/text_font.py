@@ -5,10 +5,19 @@ from pathlib import Path
 
 from PySide6.QtGui import QFontDatabase
 
+_FILES = ("segoeui.ttf", "segoeuib.ttf", "seguisb.ttf", "segoeuii.ttf")
+
 
 def ensure_text_font() -> None:
-    # The Windows offscreen Qt plugin starts with an empty font database.
-    # Load the installed Windows UI typeface explicitly for readable QA renders.
-    if not QFontDatabase.families():
-        path = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "segoeui.ttf"
-        QFontDatabase.addApplicationFont(str(path))
+    """Load Segoe UI explicitly when Qt starts with an empty font database.
+
+    The Windows offscreen Qt plugin, used for tests and headless renders, knows no fonts
+    at all; a normal desktop session already has them and this does nothing.
+    """
+    if QFontDatabase.families():
+        return
+    folder = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
+    for name in _FILES:
+        path = folder / name
+        if path.exists():
+            QFontDatabase.addApplicationFont(str(path))

@@ -223,3 +223,6 @@ __marimo__/
 data/
 songs/custom/
 .idea/
+
+# A PowerShell module cache that sandboxed tooling has written into the repository root
+/Microsoft/

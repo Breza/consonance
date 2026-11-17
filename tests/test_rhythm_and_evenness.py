@@ -22,10 +22,12 @@ from consonance.core.technique import measure_evenness
     ],
 )
 def test_attack_windows(error: float, grade: Grade) -> None:
+    """Verify attack windows."""
     assert attack_grade(error) == grade
 
 
 def test_offset_misses_strays_and_holds() -> None:
+    """Verify offset misses strays and holds."""
     grader = TimedGrader((ExpectedStrike(60, 1, 0.5), ExpectedStrike(62, 2, 1)), 20)
     hit = grader.strike(60, 1.055)
     assert hit.grade == Grade.PERFECT
@@ -41,6 +43,7 @@ def test_offset_misses_strays_and_holds() -> None:
 
 
 def test_evenness_math() -> None:
+    """Verify evenness math."""
     result = measure_evenness((0, 0.5, 1, 1.5), (60, 80, 60, 80))
     assert result.ioi_sd_ms == 0
     assert result.velocity_sd == 10

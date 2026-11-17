@@ -17,7 +17,8 @@ from consonance.core.transport import TempoMap, TempoPoint
 
 
 def test_core_has_no_hardware_or_qt_imports() -> None:
-    for path in Path("src/consonance/core").glob("*.py"):
+    """Verify core has no hardware or qt imports."""
+    for path in Path("src/consonance/core").rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8-sig"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -27,12 +28,14 @@ def test_core_has_no_hardware_or_qt_imports() -> None:
 
 
 def test_scene_switch_does_not_count_as_an_attempt() -> None:
+    """Verify scene switch does not count as an attempt."""
     engine = PracticeEngine()
     engine.command(Command(Action.SWITCH_SCENE, "ear"), 0)
     assert engine.completed == 0
 
 
 def test_fast_rhythm_with_positive_judge_offset_finishes_all_windows() -> None:
+    """Verify fast rhythm with positive judge offset finishes all windows."""
     engine = PracticeEngine()
     engine.settings = Settings(tempo_bpm=200, midi_judge_offset_ms=150)
     engine.configure_study(StudyConfig((ITEMS["rhythm:4/4:syncopation"],)))
@@ -43,6 +46,7 @@ def test_fast_rhythm_with_positive_judge_offset_finishes_all_windows() -> None:
 
 
 def test_sight_items_stay_within_two_ledger_lines() -> None:
+    """Verify sight items stay within two ledger lines."""
     for item in ITEMS.values():
         if item.mode != "sight":
             continue
@@ -55,6 +59,7 @@ def test_sight_items_stay_within_two_ledger_lines() -> None:
 
 
 def test_second_intervals_use_displaced_noteheads() -> None:
+    """Verify second intervals use displaced noteheads."""
     from consonance.core.notation import NotatedAtom
 
     layout = layout_staff((NotatedAtom((natural("C4"), natural("D4"))),))
@@ -62,6 +67,7 @@ def test_second_intervals_use_displaced_noteheads() -> None:
 
 
 def test_technique_iois_are_strikes_even_when_keys_overlap() -> None:
+    """Verify technique iois are strikes even when keys overlap."""
     engine = PracticeEngine()
     engine.configure_study(StudyConfig((ITEMS["tech:rh:C_pentascale"],)))
     engine.command(Command(Action.PLAY), 0)
@@ -77,6 +83,7 @@ def test_technique_iois_are_strikes_even_when_keys_overlap() -> None:
 
 
 def test_mistake_requeues_after_three_intervening_prompts() -> None:
+    """Verify mistake requeues after three intervening prompts."""
     items = tuple(i for i in UNITS[0].items if i.mode == "sight")
     engine = PracticeEngine()
     engine.configure_study(StudyConfig(items))
@@ -94,6 +101,7 @@ def test_mistake_requeues_after_three_intervening_prompts() -> None:
 
 
 def test_tempo_run_and_loop_ramp_are_connected() -> None:
+    """Verify tempo run and loop ramp are connected."""
     timeline = SongTimeline(
         "t",
         "test",
@@ -125,6 +133,7 @@ def test_tempo_run_and_loop_ramp_are_connected() -> None:
 
 @pytest.mark.parametrize("action", [Action.PAUSE, Action.REPLAY, Action.SWITCH_SCENE])
 def test_worker_transition_protocol_never_sends_user_cleanup(action: Action) -> None:
+    """Verify worker transition protocol never sends user cleanup."""
     engine = PracticeEngine()
     engine.command(Command(Action.SWITCH_SCENE, "ear"), 0)
     engine.command(Command(Action.PLAY), 1)

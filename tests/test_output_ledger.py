@@ -2,6 +2,7 @@ from consonance.core.midi_output import MidiOutputLedger, OutputNote
 
 
 def test_routine_cleanup_is_non_destructive() -> None:
+    """Verify routine cleanup is non destructive."""
     messages: list[tuple[int, ...]] = []
     ledger = MidiOutputLedger(messages.append)
     ledger.schedule(OutputNote(1, 60, 0.5))
@@ -16,6 +17,7 @@ def test_routine_cleanup_is_non_destructive() -> None:
 
 
 def test_full_panic_and_natural_expiry() -> None:
+    """Verify full panic and natural expiry."""
     messages: list[tuple[int, ...]] = []
     ledger = MidiOutputLedger(messages.append)
     ledger.schedule(OutputNote(0, 60, 0.5))

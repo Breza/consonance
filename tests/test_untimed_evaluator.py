@@ -5,6 +5,7 @@ from consonance.core.notation import MidiPitch
 
 
 def test_rolled_chord_and_wrong_key() -> None:
+    """Verify rolled chord and wrong key."""
     piano = PianoStateTracker()
     evaluator = UntimedEvaluator(frozenset(map(MidiPitch, (60, 64, 67))), 0)
     for p, t in ((60, 0.1), (64, 0.18), (67, 0.26)):
@@ -17,6 +18,7 @@ def test_rolled_chord_and_wrong_key() -> None:
 
 
 def test_fresh_strikes_and_allowed_held() -> None:
+    """Verify fresh strikes and allowed held."""
     piano = PianoStateTracker()
     piano.process(NoteOn(MidiPitch(48), 80, 0))
     evaluator = UntimedEvaluator(frozenset({MidiPitch(60)}), 1, frozenset({MidiPitch(48)}))
